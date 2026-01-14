@@ -13,9 +13,17 @@ function LoginPage({ onLogin }) {
     })
       .then((res) => res.json())
       .then((data) => {
+        if (!data.token) {
+          alert("Login gagal");
+          return;
+        }
+
         localStorage.setItem("token", data.token);
-        onLogin();
-      });
+
+        // ⬇️ WAJIB UNTUK DEPLOY SUBPATH
+        window.location.href = "/koperasi";
+      })
+      .catch(() => alert("Login error"));
   };
 
   return (
