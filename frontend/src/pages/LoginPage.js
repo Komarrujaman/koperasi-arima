@@ -5,25 +5,35 @@ function LoginPage({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const submit = () => {
-    fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.token) {
-          alert("Login gagal");
-          return;
-        }
+  const submit = async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
 
-        localStorage.setItem("token", data.token);
+      // ❌ LOGIN GAGAL (401 / 400)
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.message || "Login gagal");
+        return;
+      }
 
-        // ⬇️ WAJIB UNTUK DEPLOY SUBPATH
-        window.location.href = "/koperasi";
-      })
-      .catch(() => alert("Login error"));
+      const data = await res.json();
+
+      // ❌ TOKEN TIDAK ADA
+      if (!data.token) {
+        alert("Login gagal: token tidak diterima");
+        return;
+      }
+
+      // ✅ LOGIN SUKSES
+      localStorage.setItem("token", data.token);
+      window.location.href = "/koperasi";
+    } catch (err) {
+      alert("Gagal terhubung ke server");
+    }
   };
 
   return (
