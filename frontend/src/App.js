@@ -17,7 +17,7 @@ function App() {
   let content;
   switch (page) {
     case "dashboard":
-      content = <DashboardPage />;
+      content = <DashboardPage setPage={setPage} />;
       break;
     case "products":
       content = <ProductPage />;

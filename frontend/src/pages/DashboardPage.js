@@ -1,14 +1,28 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import authFetch from "../utils/authFetch";
 
-function DashboardPage() {
+function DashboardPage({ setPage }) {
   const [data, setData] = useState(null);
+  const [predictStatus, setPredictStatus] = useState({});
 
   useEffect(() => {
     authFetch("/dashboard")
       .then(setData)
-      .catch(() => {}); // sudah di-handle global
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!data || !data.produkKritis) return;
+
+    data.produkKritis.forEach((p) => {
+      authFetch(`/predict/status/${p.id}`).then((res) => {
+        setPredictStatus((prev) => ({
+          ...prev,
+          [p.id]: res,
+        }));
+      });
+    });
+  }, [data]);
 
   if (!data) return <p>Loading dashboard...</p>;
 
@@ -25,7 +39,7 @@ function DashboardPage() {
       <div className="bg-white rounded shadow p-5">
         <h3 className="text-lg font-semibold mb-3">Produk dengan Stok Kritis</h3>
 
-        {data.produkKritis.length === 0 ? (
+        {!data.produkKritis || data.produkKritis.length === 0 ? (
           <p className="text-green-600">Semua stok dalam kondisi aman</p>
         ) : (
           <table className="w-full text-sm">
@@ -33,13 +47,31 @@ function DashboardPage() {
               <tr className="border-b">
                 <th className="text-left py-2">Produk</th>
                 <th className="text-left py-2">Stok</th>
+                <th className="text-left py-2">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {data.produkKritis.map((p, i) => (
-                <tr key={i} className="border-b">
+              {data.produkKritis.map((p) => (
+                <tr key={p.id} className="border-b">
                   <td className="py-2">{p.name}</td>
                   <td className="py-2 text-red-600 font-semibold">{p.current_stock}</td>
+                  <td className="py-2">
+                    {predictStatus[p.id]?.canPredict ? (
+                      <button
+                        onClick={() => {
+                          localStorage.setItem("selectedProductId", p.id);
+                          setPage("prediction");
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Prediksi
+                      </button>
+                    ) : (
+                      <button disabled title={`Data baru ${predictStatus[p.id]?.totalPeriod || 0} periode`} className="text-red-600 cursor-not-allowed">
+                        Belum dapat diprediksi ARIMA
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -47,11 +79,15 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* CTA PREDIKSI */}
-      <div className="bg-blue-50 border border-blue-200 rounded p-5">
-        <h3 className="font-semibold text-blue-800">Prediksi Kebutuhan Stok</h3>
-        <p className="text-sm text-blue-700 mb-3">Gunakan ARIMA untuk memprediksi kebutuhan stok berdasarkan tren penjualan.</p>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded">Jalankan Prediksi</button>
+      {/* CTA GLOBAL */}
+      <div className="bg-blue-50 border border-blue-200 rounded p-5 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-blue-800">Prediksi Kebutuhan Stok</h3>
+          <p className="text-sm text-blue-700">Gunakan ARIMA untuk memprediksi kebutuhan stok berdasarkan tren penjualan.</p>
+        </div>
+        <button onClick={() => setPage("prediction")} className="bg-blue-600 text-white px-4 py-2 rounded">
+          Buka Prediksi
+        </button>
       </div>
     </div>
   );

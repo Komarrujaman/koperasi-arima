@@ -1,46 +1,85 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import authFetch from "../utils/authFetch";
 
 function PredictionPage() {
-  const [productId, setProductId] = useState(1);
+  const [products, setProducts] = useState([]);
+  const [productId, setProductId] = useState("");
   const [predictions, setPredictions] = useState([]);
   const [evaluation, setEvaluation] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [canPredict, setCanPredict] = useState(true);
+  const [totalPeriod, setTotalPeriod] = useState(0);
+
+  // ambil product_id dari dashboard
+  useEffect(() => {
+    const pid = localStorage.getItem("selectedProductId");
+    if (pid) setProductId(pid);
+  }, []);
+
+  // load produk
+  useEffect(() => {
+    authFetch("/products").then(setProducts);
+  }, []);
+
+  useEffect(() => {
+    if (!productId) return;
+
+    authFetch(`/predict/status/${productId}`).then((res) => {
+      setCanPredict(res.canPredict);
+      setTotalPeriod(res.totalPeriod);
+    });
+  }, [productId]);
 
   const runPrediction = () => {
-    setLoading(true);
+    if (!productId) {
+      alert("Pilih produk terlebih dahulu");
+      return;
+    }
 
-    // 1️⃣ Jalankan ARIMA
+    setLoading(true);
+    setPredictions([]);
+    setEvaluation(null);
+
     authFetch("/predict", {
       method: "POST",
       body: JSON.stringify({ product_id: productId }),
     })
-      .then(() => {
-        // 2️⃣ Ambil hasil prediksi
-        return authFetch(`/predict/${productId}`);
-      })
+      .then(() => authFetch(`/predict/${productId}`))
       .then((data) => {
         setPredictions(data.predictions || []);
         setEvaluation(data.evaluation || null);
         setLoading(false);
       })
-      .catch(() => {
-        setLoading(false);
-      });
+      .catch(() => setLoading(false));
   };
 
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">Prediksi Stok Menggunakan ARIMA</h2>
 
+      {/* INPUT */}
       <div className="flex gap-3 items-center">
-        <input type="number" value={productId} onChange={(e) => setProductId(e.target.value)} className="border rounded px-3 py-2 w-32" />
-        <button disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
-          {loading ? "Memproses..." : "Jalankan Prediksi"}
-        </button>
+        <select value={productId} onChange={(e) => setProductId(e.target.value)} className="border px-3 py-2 rounded">
+          <option value="">Pilih Produk</option>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+
+        {canPredict ? (
+          <button onClick={runPrediction} disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
+            {loading ? "Memproses..." : "Jalankan Prediksi"}
+          </button>
+        ) : (
+          <button disabled className="bg-red-600 text-white px-4 py-2 rounded cursor-not-allowed">
+            Data belum cukup untuk diprediksi
+          </button>
+        )}
       </div>
 
-      {/* HASIL */}
+      {/* HASIL PREDIKSI */}
       <div className="bg-white rounded shadow p-4">
         <h3 className="font-semibold mb-3">Hasil Prediksi (4 Minggu)</h3>
 
@@ -58,7 +97,7 @@ function PredictionPage() {
                 <td className="py-2">{p.predicted_value}</td>
               </tr>
             ))}
-            {predictions.length === 0 && (
+            {predictions.length === 0 && !loading && (
               <tr>
                 <td colSpan="2" className="text-center py-4 text-gray-500">
                   Belum ada prediksi

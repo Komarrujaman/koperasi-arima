@@ -12,7 +12,7 @@ exports.getDashboard = (req, res) => {
       db.query("SELECT COUNT(*) AS stokKritis FROM products WHERE current_stock < 10", (e3, r3) => {
         result.stokKritis = r3[0].stokKritis;
 
-        db.query("SELECT name, current_stock FROM products WHERE current_stock < 10", (e4, r4) => {
+        db.query("SELECT id, name, current_stock FROM products WHERE current_stock < 10", (e4, r4) => {
           result.produkKritis = r4;
           res.json(result);
         });

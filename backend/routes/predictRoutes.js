@@ -9,4 +9,7 @@ router.post("/", auth, predictController.runPrediction);
 // Ambil hasil prediksi (HARUS LOGIN)
 router.get("/:product_id", auth, predictController.getPredictionResult);
 
+// Validasi histori transaksi
+router.get("/status/:product_id", auth, predictController.checkPredictionStatus);
+
 module.exports = router;
