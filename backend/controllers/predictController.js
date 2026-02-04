@@ -4,41 +4,43 @@ const db = require("../config/db");
 
 // ===============================
 // POST /predict
-// Menjalankan ARIMA
+// Body: { product_id, duration }
+// duration: 3 (hari) | 7 (minggu) | 30 (bulan)
 // ===============================
 exports.runPrediction = (req, res) => {
-  // ✅ 1. AMBIL DULU product_id
-  const { product_id } = req.body;
+  const { product_id, duration } = req.body;
 
-  // ✅ 2. VALIDASI
+  // 🔒 VALIDASI
   if (!product_id) {
-    return res.status(400).json({
-      error: "product_id wajib diisi",
-    });
+    return res.status(400).json({ error: "product_id wajib diisi" });
   }
 
-  // ✅ 3. HAPUS HASIL LAMA (SETELAH product_id ADA)
+  const steps = parseInt(duration) || 7; // default 7 periode
+
+  // 🧹 HAPUS HASIL LAMA
   db.query("DELETE FROM predictions WHERE product_id = ?", [product_id], (err) => {
-    if (err) {
-      return res.status(500).json(err);
-    }
+    if (err) return res.status(500).json(err);
 
-    // ✅ 4. PATH PYTHON (LINUX SERVER)
-    const pythonPath = path.join(__dirname, "../../arima/venv/Scripts/python.exe");
-    const scriptPath = path.join(__dirname, "../../arima/arima.py");
+    // 🐍 PATH PYTHON (LINUX)
+    const pythonPath = "python";
+    const scriptPath = path.resolve(__dirname, "../../arima/arima.py");
 
-    const command = `${pythonPath} ${scriptPath} ${product_id}`;
+    const command = `${pythonPath} ${scriptPath} ${product_id} ${steps}`;
 
     exec(command, (error, stdout, stderr) => {
       if (error) {
-        console.error("ARIMA error:", stderr);
+        console.error("ARIMA STDERR:", stderr);
         return res.status(500).json({
           error: "Gagal menjalankan ARIMA",
+          detail: stderr,
         });
       }
 
+      console.log("ARIMA OUTPUT:", stdout);
+
       res.json({
         message: "Prediksi berhasil dijalankan",
+        steps,
       });
     });
   });
@@ -51,10 +53,10 @@ exports.runPrediction = (req, res) => {
 exports.getPredictionResult = (req, res) => {
   const { product_id } = req.params;
 
-  db.query("SELECT period, predicted_value FROM predictions WHERE product_id = ? ORDER BY id DESC LIMIT 4", [product_id], (err, predictions) => {
+  db.query("SELECT period, predicted_value FROM predictions WHERE product_id = ? ORDER BY id ASC", [product_id], (err, predictions) => {
     if (err) return res.status(500).json(err);
 
-    db.query("SELECT mae, rmse FROM model_evaluations WHERE product_id = ? ORDER BY id DESC LIMIT 1", [product_id], (err2, evals) => {
+    db.query("SELECT mae, mse, rmse, mape, accuracy, r2 FROM model_evaluations WHERE product_id = ? ORDER BY id DESC LIMIT 1", [product_id], (err2, evals) => {
       if (err2) return res.status(500).json(err2);
 
       res.json({
