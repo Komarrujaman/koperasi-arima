@@ -15,7 +15,7 @@ export default async function authFetch(url, options = {}) {
   // 🔴 TOKEN EXPIRED / INVALID
   if (res.status === 401) {
     localStorage.removeItem("token");
-    window.location.reload(); // auto logout
+    window.location.href = "/login";
     throw new Error("Unauthorized");
   }
 
