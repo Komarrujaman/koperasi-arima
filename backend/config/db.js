@@ -1,17 +1,17 @@
-const mysql = require('mysql2');
+const mysql = require("mysql2");
 
 const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '',       // sesuaikan
-  database: 'koperasi_arima'
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 });
 
-db.connect(err => {
+db.connect((err) => {
   if (err) {
-    console.error('DB error:', err);
+    console.error("DB error:", err);
   } else {
-    console.log('MySQL connected');
+    console.log("MySQL connected");
   }
 });
 
